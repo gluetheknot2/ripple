@@ -1,10 +1,12 @@
 package info.guardianproject.ripple;
 
 import android.app.Activity;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Rect;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -12,8 +14,12 @@ import android.view.View.OnTouchListener;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.ImageView;
+import android.support.v7.app.AlertDialog;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import info.guardianproject.panic.PanicTrigger;
 
 public class PanicActivity extends Activity implements OnTouchListener {
     public static final String TAG = "PanicActivity";
@@ -80,6 +86,32 @@ public class PanicActivity extends Activity implements OnTouchListener {
         mBlueDelta = blueEnd - mBlueStart;
     }
 
+    private void triggerNow() {
+        if (getIntent().getBooleanExtra(EXTRA_TEST_RUN, false)) {
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.test_dialog_title)
+                    .setMessage(R.string.panic_test_successful)
+                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.dismiss();
+                            finish();
+                        }
+                    }).show();
+        } else {
+            PanicTrigger.sendTrigger(this);
+            Toast.makeText(this, R.string.done, Toast.LENGTH_LONG).show();
+
+            /* Stay running for a while so all Intents reach the responder apps. */
+            new Handler().postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    ExitActivity.exitAndRemoveFromRecentApps(PanicActivity.this);
+                }
+            }, 10000);
+        }
+    }
+
     @Override
     protected void onPause() {
         super.onPause();
@@ -119,12 +151,7 @@ public class PanicActivity extends Activity implements OnTouchListener {
                         AnimationHelpers.scale(mPanicSwipeButton, 1.0f, 0, 200, new Runnable() {
                             @Override
                             public void run() {
-                                Intent intent = new Intent(getBaseContext(), CountDownActivity.class);
-                                intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
-                                intent.putExtra(EXTRA_TEST_RUN,
-                                        getIntent().getBooleanExtra(EXTRA_TEST_RUN, false));
-                                startActivity(intent);
-                                finish();
+                                triggerNow();
                             }
                         });
                     } else {
